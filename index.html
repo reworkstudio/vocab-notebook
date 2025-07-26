@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Словничок / Vocabulary</title>
+  <style>
+    /* --- Теми --- */
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg-color);
+      color: var(--text-color);
+      transition: background 0.3s, color 0.3s;
+    }
+    :root {
+      --bg-color: #e6f0ff;
+      --text-color: #222;
+      --header-bg: #005ce6;
+      --header-color: white;
+      --section-bg: white;
+      --entry-bg: #f1f8ff;
+      --button-bg: #005ce6;
+      --button-hover-bg: #0041b3;
+      --delete-btn-bg: #e60000;
+      --delete-btn-hover-bg: #b30000;
+      --border-color: #ccc;
+    }
+    body.dark {
+      --bg-color: #121212;
+      --text-color: #e1e1e1;
+      --header-bg: #003399;
+      --header-color: #eee;
+      --section-bg: #1e1e1e;
+      --entry-bg: #2a2a2a;
+      --button-bg: #0041b3;
+      --button-hover-bg: #002880;
+      --delete-btn-bg: #b30000;
+      --delete-btn-hover-bg: #7a0000;
+      --border-color: #555;
+    }
+
+    header {
+      background: var(--header-bg);
+      color: var(--header-color);
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.5rem;
+    }
+    .container {
+      max-width: 700px;
+      margin: auto;
+      padding: 1rem;
+    }
+    h2 {
+      color: var(--header-bg);
+    }
+    input, button, select {
+      width: 100%;
+      margin: 0.3rem 0;
+      padding: 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 1rem;
+      background: var(--section-bg);
+      color: var(--text-color);
+    }
+    button {
+      background-color: var(--button-bg);
+      color: white;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover {
+      background-color: var(--button-hover-bg);
+    }
+    .section {
+      background: var(--section-bg);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    body.dark .section {
+      box-shadow: 0 0 10px rgba(255,255,255,0.1);
+    }
+    .entry {
+      background: var(--entry-bg);
+      padding: 0.8rem;
+      border-radius: 8px;
+      margin: 0.5rem 0;
+      position: relative;
+      color: var(--text-color);
+    }
+    .entry-buttons {
+      position: absolute;
+      right: 0.5rem;
+      top: 0.5rem;
+      display: flex;
+      gap: 0.25rem;
+    }
+    .delete-btn {
+      background: var(--delete-btn-bg);
+      color: white;
+      border: none;
+      padding: 0.4rem 0.6rem;
+      border-radius: 6px;
+    }
+    .delete-btn:hover {
+      background: var(--delete-btn-hover-bg);
+    }
+
+    /* Для перемикача мови і теми */
+    #controls {
+      max-width: 700px;
+      margin: 1rem auto;
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: center;
+    }
+    #controls select {
+      width: auto;
+      flex: 1;
+    }
+    #controls button {
+      flex: 1;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <header id="headerTitle">🌍 Мій Словничок</header>
+
+  <div id="controls" class="container">
+    <select id="languageSelect" onchange="changeLanguage()">
+      <option value="uk">Українська</option>
+      <option value="en">English</option>
+    </select>
+    <button id="themeToggleBtn" onclick="toggleTheme()">Темна тема</button>
+  </div>
+
+  <div class="container">
+    <div class="section">
+      <h2 id="catTitle">1. Категорії</h2>
+      <input id="categoryInput" placeholder="Нова категорія" />
+      <button onclick="addCategory()" id="addCatBtn">➕ Додати категорію</button>
+      <select id="categorySelect" onchange="changeCategory()"></select>
+      <button onclick="deleteCategory()" id="delCatBtn" style="background:#e60000;margin-top:0.5rem">🗑️ Видалити категорію</button>
+    </div>
+
+    <div class="section" id="subcategoryBlock" style="display:none">
+      <h2 id="subcatTitle">2. Підкатегорії</h2>
+      <input id="subcategoryInput" placeholder="Нова підкатегорія" />
+      <button onclick="addSubcategory()" id="addSubcatBtn">➕ Додати підкатегорію</button>
+      <select id="subcategorySelect" onchange="changeSubcategory()"></select>
+      <button onclick="deleteSubcategory()" id="delSubcatBtn" style="background:#e60000;margin-top:0.5rem">🗑️ Видалити підкатегорію</button>
+    </div>
+
+    <div class="section" id="entryBlock" style="display:none">
+      <h2 id="entryTitle">3. Додати фразу</h2>
+      <input id="originalInput" placeholder="Фраза оригіналом" />
+      <input id="readingInput" placeholder="Як читається" />
+      <input id="translationInput" placeholder="Переклад українською" />
+      <button onclick="addEntry()" id="addEntryBtn">💬 Додати фразу</button>
+      <div id="entries"></div>
+    </div>
+  </div>
+
+  <script>
+    let data = JSON.parse(localStorage.getItem('vocabData') || '{}');
+    let currentCategory = null;
+    let currentSubcategory = null;
+
+    const categorySelect = document.getElementById('categorySelect');
+    const subcategorySelect = document.getElementById('subcategorySelect');
+    const entriesDiv = document.getElementById('entries');
+
+    const languageSelect = document.getElementById('languageSelect');
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+
+    // Переклади текстів
+    const translations = {
+      uk: {
+        headerTitle: "🌍 Мій Словничок",
+        catTitle: "1. Категорії",
+        categoryInputPlaceholder: "Нова категорія",
+        addCatBtn: "➕ Додати категорію",
+        delCatBtn: "🗑️ Видалити категорію",
+        subcatTitle: "2. Підкатегорії",
+        subcategoryInputPlaceholder: "Нова підкатегорія",
+        addSubcatBtn: "➕ Додати підкатегорію",
+        delSubcatBtn: "🗑️ Видалити підкатегорію",
+        entryTitle: "3. Додати фразу",
+        originalInputPlaceholder: "Фраза оригіналом",
+        readingInputPlaceholder: "Як читається",
+        translationInputPlaceholder: "Переклад українською",
+        addEntryBtn: "💬 Додати фразу",
+        deleteConfirmEntry: "Видалити цю фразу?",
+        deleteConfirmCategory: "Видалити категорію",
+        deleteConfirmSubcategory: "Видалити підкатегорію",
+        categorySelectDefault: "Оберіть категорію",
+        subcategorySelectDefault: "Оберіть підкатегорію",
+        themeDark: "Темна тема",
+        themeLight: "Світла тема",
+      },
+      en: {
+        headerTitle: "🌍 My Vocabulary",
+        catTitle: "1. Categories",
+        categoryInputPlaceholder: "New category",
+        addCatBtn: "➕ Add category",
+        delCatBtn: "🗑️ Delete category",
+        subcatTitle: "2. Subcategories",
+        subcategoryInputPlaceholder: "New subcategory",
+        addSubcatBtn: "➕ Add subcategory",
+        delSubcatBtn: "🗑️ Delete subcategory",
+        entryTitle: "3. Add phrase",
+        originalInputPlaceholder: "Original phrase",
+        readingInputPlaceholder: "How to read",
+        translationInputPlaceholder: "Translation (Ukrainian)",
+        addEntryBtn: "💬 Add phrase",
+        deleteConfirmEntry: "Delete this phrase?",
+        deleteConfirmCategory: "Delete category",
+        deleteConfirmSubcategory: "Delete subcategory",
+        categorySelectDefault: "Select category",
+        subcategorySelectDefault: "Select subcategory",
+        themeDark: "Dark theme",
+        themeLight: "Light theme",
+      }
+    };
+
+    // Збереження і завантаження налаштувань мови і теми
+    function loadSettings() {
+      const lang = localStorage.getItem('lang') || 'uk';
+      languageSelect.value = lang;
+      applyLanguage(lang);
+
+      const theme = localStorage.getItem('theme') || 'light';
+      if (theme === 'dark') {
+        document.body.classList.add('dark');
+        themeToggleBtn.textContent = translations[lang].themeLight;
+      } else {
+        document.body.classList.remove('dark');
+        themeToggleBtn.textContent = translations[lang].themeDark;
+      }
+    }
+
+    function saveSettings() {
+      localStorage.setItem('lang', languageSelect.value);
+      localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+    }
+
+    // Застосувати мову
+    function applyLanguage(lang) {
+      const t = translations[lang];
+      document.getElementById('headerTitle').textContent = t.headerTitle;
+      document.getElementById('catTitle').textContent = t.catTitle;
+      document.getElementById('categoryInput').placeholder = t.categoryInputPlaceholder;
+      document.getElementById('addCatBtn').textContent = t.addCatBtn;
+      document.getElementById('delCatBtn').textContent = t.delCatBtn;
+      document.getElementById('subcatTitle').textContent = t.subcatTitle;
+      document.getElementById('subcategoryInput').placeholder = t.subcategoryInputPlaceholder;
+      document.getElementById('addSubcatBtn').textContent = t.addSubcatBtn;
+      document.getElementById('delSubcatBtn').textContent = t.delSubcatBtn;
+      document.getElementById('entryTitle').textContent = t.entryTitle;
+      document.getElementById('originalInput').placeholder = t.originalInputPlaceholder;
+      document.getElementById('readingInput').placeholder = t.readingInputPlaceholder;
+      document.getElementById('translationInput').placeholder = t.translationInputPlaceholder;
+      document.getElementById('addEntryBtn').textContent = t.addEntryBtn;
+
+      // Оновити default опції селектів
+      refreshCategories();
+      if (currentCategory) {
+        categorySelect.value = currentCategory;
+        refreshSubcategories();
+        if (currentSubcategory) {
+          subcategorySelect.value = currentSubcategory;
+        }
+      }
+    }
+
+    // Зміна мови з селекту
+    function changeLanguage() {
+      const lang = languageSelect.value;
+      applyLanguage(lang);
+      saveSettings();
+    }
+
+    // Перемикач теми
+    function toggleTheme() {
+      const lang = languageSelect.value;
+      if (document.body.classList.contains('dark')) {
+        document.body.classList.remove('dark');
+        themeToggleBtn.textContent = translations[lang].themeDark;
+      } else {
+        document.body.classList.add('dark');
+        themeToggleBtn.textContent = translations[lang].themeLight;
+      }
+      saveSettings();
+    }
+
+    // Збереження даних словника
+    function save() {
+      localStorage.setItem('vocabData', JSON.stringify(data));
+    }
+
+    // Оновлення списку категорій
+    function refreshCategories() {
+      const t = translations[languageSelect.value];
+      categorySelect.innerHTML = `<option disabled selected>${t.categorySelectDefault}</option>`;
+      Object.keys(data).forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        categorySelect.appendChild(opt);
+      });
+    }
+
+    // Зміна категорії
+    function changeCategory() {
+      currentCategory = categorySelect.value;
+      document.getElementById('subcategoryBlock').style.display = 'block';
+      refreshSubcategories();
+    }
+
+    // Додати категорію
+    function addCategory() {
+      const name = document.getElementById('categoryInput').value.trim();
+      if (!name) return alert("Please enter a category name.");
+      if (data[name]) return alert("Category already exists.");
+      data[name] = {};
+      save();
+      refreshCategories();
+      document.getElementById('categoryInput').value = '';
+    }
+
+    // Видалити категорію
+    function deleteCategory() {
+      if (!currentCategory) return alert("Please select a category first.");
+      const t = translations[languageSelect.value];
+      if (confirm(`${t.deleteConfirmCategory} "${currentCategory}"?`)) {
+        delete data[currentCategory];
+        save();
+        location.reload();
+      }
+    }
+
+    // Оновлення списку підкатегорій
+    function refreshSubcategories() {
+      const t = translations[languageSelect.value];
+      subcategorySelect.innerHTML = `<option disabled selected>${t.subcategorySelectDefault}</option>`;
+      Object.keys(data[currentCategory] || {}).forEach(sub => {
+        const opt = document.createElement('option');
+        opt.value = sub;
+        opt.textContent = sub;
+        subcategorySelect.appendChild(opt);
+      });
+    }
+
+    // Зміна підкатегорії
+    function changeSubcategory() {
+      currentSubcategory = subcategorySelect.value;
+      document.getElementById('entryBlock').style.display = 'block';
+      renderEntries();
+    }
+
+    // Додати підкатегорію
+    function addSubcategory() {
+      const name = document.getElementById('subcategoryInput').value.trim();
+      if (!name) return alert("Please enter a subcategory name.");
+      if (data[currentCategory][name]) return alert("Subcategory already exists.");
+      data[currentCategory][name] = [];
+      save();
+      refreshSubcategories();
+      document.getElementById('subcategoryInput').value = '';
+    }
+
+    // Видалити підкатегорію
+    function deleteSubcategory() {
+      if (!currentSubcategory) return alert("Please select a subcategory first.");
+      const t = translations[languageSelect.value];
+      if (confirm(`${t.deleteConfirmSubcategory} "${currentSubcategory}"?`)) {
+        delete data[currentCategory][currentSubcategory];
+        save();
+        location.reload();
+      }
+    }
+
+    // Додати фразу
+    function addEntry() {
+      const original = document.getElementById('originalInput').value.trim();
+      const reading = document.getElementById('readingInput').value.trim();
+      const translation = document.getElementById('translationInput').value.trim();
+      if (!original || !reading || !translation) {
+        alert("Please fill all fields.");
+        return;
+      }
+      data[currentCategory][currentSubcategory].push({ original, reading, translation });
+      save();
+      document.getElementById('originalInput').value = '';
+      document.getElementById('readingInput').value = '';
+      document.getElementById('translationInput').value = '';
+      renderEntries();
+    }
+
+    // Відмалювати фрази
+    function renderEntries() {
+      entriesDiv.innerHTML = '';
+      const list = data[currentCategory][currentSubcategory];
+      list.forEach((e, i) => {
+        const div = document.createElement('div');
+        div.className = 'entry';
+        div.innerHTML = `
+          <div><b>${languageSelect.value === 'uk' ? 'Фраза' : 'Phrase'}:</b> <span contenteditable onblur="updateEntry(${i}, this.innerText, 'original')">${e.original}</span></div>
+          <div><b>${languageSelect.value === 'uk' ? 'Як читати' : 'Reading'}:</b> <span contenteditable onblur="updateEntry(${i}, this.innerText, 'reading')">${e.reading}</span></div>
+          <div><b>${languageSelect.value === 'uk' ? 'Переклад' : 'Translation'}:</b> <span contenteditable onblur="updateEntry(${i}, this.innerText, 'translation')">${e.translation}</span></div>
+          <div class="entry-buttons">
+            <button class="delete-btn" onclick="deleteEntry(${i})">✕</button>
+          </div>
+        `;
+        entriesDiv.appendChild(div);
+      });
+    }
+
+    // Оновити фразу
+    function updateEntry(index, newValue, field) {
+      data[currentCategory][currentSubcategory][index][field] = newValue.trim();
+      save();
+    }
+
+    // Видалити фразу
+    function deleteEntry(index) {
+      const t = translations[languageSelect.value];
+      if (confirm(t.deleteConfirmEntry)) {
+        data[currentCategory][currentSubcategory].splice(index, 1);
+        save();
+        renderEntries();
+      }
+    }
+
+    // Ініціалізація налаштувань
+    loadSettings();
+
+    // Спершу оновлюємо категорії, щоб не було порожньо
+    refreshCategories();
+
+  </script>
+</body>
+</html>
